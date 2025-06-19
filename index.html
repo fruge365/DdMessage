@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钉钉机器人消息发送简易工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4096ff',
+                        success: '#52c41a',
+                        danger: '#ff4d4f',
+                        warning: '#faad14',
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-xl p-6 shadow-lg">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <i class="fa-brands fa-dingtalk text-primary mr-2"></i>钉钉消息发送工具
+        </h1>
+        
+        <form id="messageForm" class="space-y-4">
+            <div class="space-y-2">
+                <label for="accessToken" class="block text-sm font-medium text-gray-700">
+                    <i class="fa-solid fa-key mr-1"></i> Access Token
+                </label>
+                <input 
+                    type="text" 
+                    id="accessToken" 
+                    placeholder="请输入钉钉机器人的Access Token"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                    required
+                >
+            </div>
+            
+            <div class="space-y-2">
+                <label for="message" class="block text-sm font-medium text-gray-700">
+                    <i class="fa-solid fa-comment mr-1"></i> 消息内容
+                </label>
+                <textarea 
+                    id="message" 
+                    rows="4" 
+                    placeholder="请输入要发送的消息..."
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"
+                    required
+                ></textarea>
+            </div>
+            
+            <!-- IP检测按钮 -->
+            <button 
+                type="button" 
+                id="checkIpBtn" 
+                class="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center"
+            >
+                <i class="fa-solid fa-globe mr-2"></i> 检测当前请求IP
+            </button>
+            
+            <button 
+                type="submit" 
+                id="sendBtn" 
+                class="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center"
+            >
+                <i class="fa-solid fa-paper-plane mr-2"></i> 发送消息
+            </button>
+        </form>
+        
+        <!-- IP检测结果 -->
+        <div id="ipCheckResult" class="mt-4 hidden">
+            <div class="p-4 bg-gray-50 rounded-lg text-gray-700">
+                <h3 class="font-medium mb-2 flex items-center">
+                    <i class="fa-solid fa-info-circle text-primary mr-2"></i> IP检测结果
+                </h3>
+                <p id="ipAddress" class="text-sm"></p>
+            </div>
+        </div>
+        
+        <!-- 响应结果 -->
+        <div id="responseArea" class="mt-6 hidden">
+            <div id="responseStatus" class="p-4 rounded-lg mb-2 font-medium"></div>
+            <div id="responseContent" class="p-4 bg-gray-50 rounded-lg text-gray-700 overflow-x-auto text-sm"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageForm = document.getElementById('messageForm');
+            const responseArea = document.getElementById('responseArea');
+            const responseStatus = document.getElementById('responseStatus');
+            const responseContent = document.getElementById('responseContent');
+            const sendBtn = document.getElementById('sendBtn');
+            const checkIpBtn = document.getElementById('checkIpBtn');
+            const ipCheckResult = document.getElementById('ipCheckResult');
+            const ipAddress = document.getElementById('ipAddress');
+            
+            // 加载保存的access token
+            const savedAccessToken = localStorage.getItem('dingtalkAccessToken');
+            if (savedAccessToken) {
+                document.getElementById('accessToken').value = savedAccessToken;
+            }
+            
+            // IP检测按钮点击事件
+            checkIpBtn.addEventListener('click', async function() {
+                checkIpBtn.disabled = true;
+                checkIpBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> 检测中...';
+                ipCheckResult.classList.add('hidden');
+                
+                try {
+                    // 使用多个API进行IP检测，提高可靠性
+                    const apis = [
+                        'https://api.ipify.org?format=json',
+                        'https://ipinfo.io/json',
+                        'https://api.myip.com'
+                    ];
+                    
+                    let ipData = null;
+                    
+                    // 尝试从多个API获取IP信息
+                    for (const api of apis) {
+                        try {
+                            const response = await fetch(api);
+                            ipData = await response.json();
+                            break;
+                        } catch (error) {
+                            console.warn(`无法从 ${api} 获取IP信息:`, error);
+                        }
+                    }
+                    
+                    if (!ipData) {
+                        throw new Error('无法获取IP信息');
+                    }
+                    
+                    // 解析IP信息
+                    let ipInfo = '';
+                    if (ipData.ip) {
+                        ipInfo = `当前请求的公网IP是: <span class="font-semibold">${ipData.ip}</span>`;
+                    } else if (ipData.ipaddress) {
+                        ipInfo = `当前请求的公网IP是: <span class="font-semibold">${ipData.ipaddress}</span>`;
+                    }
+                    
+                    if (ipData.city || ipData.region || ipData.country) {
+                        ipInfo += '<br>地理位置: ';
+                        if (ipData.city) ipInfo += `${ipData.city}, `;
+                        if (ipData.region) ipInfo += `${ipData.region}, `;
+                        if (ipData.country) ipInfo += ipData.country;
+                    }
+                    
+                    ipAddress.innerHTML = ipInfo;
+                    ipCheckResult.classList.remove('hidden');
+                    
+                    // 提示用户检查IP是否在白名单中
+                    setTimeout(() => {
+                        alert('请确认检测到的IP地址是否已添加到钉钉机器人的白名单中。\n\n如果IP不匹配，可能需要添加服务器的公网IP或负载均衡器的IP。');
+                    }, 500);
+                } catch (error) {
+                    ipAddress.textContent = `无法获取IP信息: ${error.message}`;
+                    ipCheckResult.classList.remove('hidden');
+                } finally {
+                    checkIpBtn.disabled = false;
+                    checkIpBtn.innerHTML = '<i class="fa-solid fa-globe mr-2"></i> 检测当前请求IP';
+                }
+            });
+            
+            // 表单提交事件
+            messageForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                try {
+                    // 显示加载状态
+                    sendBtn.disabled = true;
+                    sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> 发送中...';
+                    responseArea.classList.add('hidden');
+                    
+                    // 获取表单数据
+                    const accessToken = document.getElementById('accessToken').value.trim();
+                    const message = document.getElementById('message').value.trim();
+                    
+                    // 保存access token
+                    localStorage.setItem('dingtalkAccessToken', accessToken);
+                    
+                    // 构建请求数据
+                    const requestData = {
+                        msgtype: 'text',
+                        text: {
+                            content: message
+                        },
+                        debug: {
+                            timestamp: new Date().toISOString(),
+                            userAgent: navigator.userAgent,
+                            referrer: document.referrer
+                        }
+                    };
+                    
+                    // 发送请求到Nginx代理路径
+                    const response = await fetch(`/dingtalk/webhook?access_token=${accessToken}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    // 处理响应
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误，状态码: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // 显示响应结果
+                    responseArea.classList.remove('hidden');
+                    
+                    if (data.errcode === 0) {
+                        responseStatus.className = 'p-4 rounded-lg mb-2 font-medium bg-success/10 text-success';
+                        responseStatus.textContent = '发送成功';
+                    } else {
+                        responseStatus.className = 'p-4 rounded-lg mb-2 font-medium bg-danger/10 text-danger';
+                        responseStatus.textContent = '发送失败';
+                    }
+                    
+                    responseContent.textContent = JSON.stringify(data, null, 2);
+                } catch (error) {
+                    responseArea.classList.remove('hidden');
+                    responseStatus.className = 'p-4 rounded-lg mb-2 font-medium bg-danger/10 text-danger';
+                    responseStatus.textContent = '发送出错';
+                    
+                    // 显示详细的错误信息
+                    const errorDetails = {
+                        message: error.message,
+                        stack: error.stack,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    responseContent.textContent = JSON.stringify(errorDetails, null, 2);
+                } finally {
+                    // 恢复按钮状态
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> 发送消息';
+                }
+            });
+        });
+    </script>
+</body>
+</html>    
