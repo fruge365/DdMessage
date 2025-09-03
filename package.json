@@ -1,0 +1,59 @@
+{
+  "name": "ddmessage-fruge365",
+  "version": "1.0.5",
+  "description": "钉钉机器人消息发送工具 - 支持文本、markdown、链接等多种消息类型",
+  "main": "lib/index.js",
+  "module": "lib/index.esm.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./lib/index.esm.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && rollup -c",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dingtalk",
+    "robot",
+    "webhook",
+    "message",
+    "notification",
+    "钉钉",
+    "机器人"
+  ],
+  "author": "fruge365",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "rollup": "^4.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "tslib": "^2.6.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "files": [
+    "lib/**/*",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fruge365/DdMessage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fruge365/DdMessage/issues"
+  },
+  "homepage": "https://github.com/fruge365/DdMessage",
+  "directories": {
+    "lib": "lib"
+  }
+}
